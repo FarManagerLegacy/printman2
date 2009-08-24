@@ -1,0 +1,9 @@
+.Language=Russian,Russian (Русский)
+.PluginContents=PrintMan2
+
+@Contents
+$ #PrintMan2#
+  Этот плагин для  FAR Manager предназначен для печати текущего файла
+	или выделенной области во встроенном редакторе.
+	niarbrnd@yandex.ru
+
