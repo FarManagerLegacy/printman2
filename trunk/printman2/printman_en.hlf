@@ -1,0 +1,7 @@
+.Language=English,English (English)
+.PluginContents=PrintMan2
+
+@Contents
+$ #Printman2#
+	Plugin print current file or selected text from editor
+	niarbrnd@yandex.ru
