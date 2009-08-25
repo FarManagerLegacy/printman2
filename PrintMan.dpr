@@ -1,5 +1,5 @@
 (*
-  Print Manger - плагин Менеждер печати
+  Print Manаger 2 - плагин Менеждер печати 2
   Copyright (c) 2009, [ niarbrnd ]
   Roman A. Dyachkov
 *)
@@ -16,14 +16,13 @@ type
 
 var
   FARAPI: TPluginStartupInfo;
-  kb: TKeyBarTitles;
   FRegRoot,PLastPrinter:string;
 
 function GetMsg(MsgId: TMessage): PChar;
 begin
   result:= FARAPI.GetMsg(FARAPI.ModuleNumber, integer(MsgId));
 end;
-procedure ReadSettings;
+procedure ReadSettings;  //получаем настройки плагина
 var
     vKey :TRegistry;
   begin
@@ -33,32 +32,29 @@ var
       Exit;
     try
       if vKey.ValueExists('LastSelectPrinter') then
-        PLastPrinter:= vKey.ReadString('LastSelectPrinter');
+        PLastPrinter:= vKey.ReadString('LastSelectPrinter'); //получаем принтер на который выполнялась предыдущая печать
       vKey.CloseKey;
     finally
       vKey.Free;
     end;
 end;
 
-procedure mess (strMess: string);
+procedure mess (strMess: string);    // используется для отладки и вывода сообщений об ошибках
 var
-  Msg: array[0..6] of PChar;
+  Msg: array[0..3] of PChar;
 
 begin
 
   Msg[0]:= pchar(strMess);
   Msg[1]:= pchar(strMess);
-  Msg[2]:= pchar(strMess);
-  Msg[3]:= pchar(strMess);
-  Msg[4]:= pchar(strMess);
-  Msg[5]:= #01#00;                   // separator line
-  Msg[6]:= GetMsg(MButton);
+  Msg[2]:= #01#00;                   // separator line
+  Msg[3]:= GetMsg(MButton);
 
   FARAPI.Message(FARAPI.ModuleNumber,             // PluginNumber
                  FMSG_WARNING or FMSG_LEFTALIGN,  // Flags
                 'Contents',                       // HelpTopic
                  @Msg,                            // Items
-                 7,                               // ItemsNumber
+                 4,                               // ItemsNumber
                  1);                              // ButtonsNumber
 
 end;
@@ -70,11 +66,7 @@ function WriteSettings(Param:string;Value:string):boolean;
     result:=false;
     vKey:=TRegistry.Create;
     vKey.RootKey := HKEY_CURRENT_USER;
-    //mess (Value);
-
     try
-      //if vKey.ValueExists('LastSelectPrinter') then
-      //  PLastPrinter:= vKey.ReadString('LastSelectPrinter');
       if vKey.OpenKey (FRegRoot+'\'+PName,True)  then
         begin
           vKey.WriteString(Param,Value);
@@ -86,33 +78,6 @@ function WriteSettings(Param:string;Value:string):boolean;
       vKey.Free;
     end;
   end;
-
-
-procedure GetOpenPluginInfo (hplugin: thandle; var opi: TOpenPluginInfo); stdcall;
-
-begin
-  fillchar(kb,sizeof(kb),#0);
-  kb.ShiftTitles[6]:= 'Prn';
-  kb.AltTitles[4]:= 'Prn';
-  opi.StructSize:= SizeOf(opi);
-  opi.Flags:=OPIF_USEFILTER;
-  opi.HostFile:=nil;
-  opi.CurDir:='';
-  opi.Format:='';
-  opi.PanelTitle:='';
-  opi.InfoLines:=nil;
-  opi.InfoLinesNumber:=0;
-  opi.DescrFiles:=nil;
-  opi.DescrFilesNumber:=0;
-  opi.PanelModesArray:=nil;
-  opi.PanelModesNumber:=0;
-  opi.StartPanelMode:=0;
-  opi.StartSortMode:=SM_DEFAULT;
-  opi.StartSortOrder:=0;
-  opi.ShortcutData:=nil;
-  opi.Reserved:=0;
-  opi.keybar:=@kb;
-end;
 
 procedure SetStartupInfo(var psi: TPluginStartupInfo); stdcall;
 begin
@@ -131,7 +96,7 @@ begin
   PluginMenuStrings[0]:= GetMsg(MTitle);
   pi.PluginMenuStrings:= @PluginMenuStrings;
   pi.PluginMenuStringsNumber:= 1;
-  pi.SysID:=1851870544;
+  pi.SysID:=1851870544; //Указфываем SYSID равный SYSID плагина идущего в поставке Far
   //pi.PluginConfigStrings:= @PluginMenuStrings;
   //pi.PluginConfigStringsNumber:= 1;
 end;
@@ -153,18 +118,14 @@ var
   egs: TEditorGetString;
   isSelectEndString: boolean;
 
-//  pcbNeeded: DWORD;
+
   FDevice: PChar;
-//  FPort: PChar;
-//  FDriver: PChar;
   FPrinterHandle: THandle;
-//  FDeviceMode: THandle;
   DOC:DOC_INFO_1;
-//  lpData:pchar;
   dwBytesWritten:Cardinal;
 
 begin
-  result:=INVALID_HANDLE_VALUE;
+  result:=INVALID_HANDLE_VALUE; //Устанавливаем для возвращения в последнее состояние после исполнения плагина
   ReadSettings;
   fillchar(msg ,128*SizeOf(TFarMenuItem),#0);
   for i := 0 to Printer.Printers.Count-1 do
@@ -181,12 +142,9 @@ begin
 
   if  resultmenu > -1 then
   begin
-    //farapi.RootKey
     if not WriteSettings('LastSelectPrinter',Printer.Printers.Strings[resultmenu]) then
       mess('Error save last selected printed');
     GetMem(FDevice, 128);
-//    GetMem(FDriver, 128);
-//    GetMem(FPort, 128);
     FDevice:=pchar(Printer.Printers.Strings[resultmenu]);
   if OpenPrinter(FDevice, FPrinterHandle, nil) then
     begin
@@ -211,7 +169,7 @@ begin
                 Exit
               end;
             // Начало страницы.
-            if( StartPagePrinter( FPrinterHandle ) = False) then
+            if not StartPagePrinter( FPrinterHandle )  then
               begin
                 EndDocPrinter( FPrinterHandle );
                 ClosePrinter( FPrinterHandle );
@@ -238,28 +196,27 @@ begin
               if isSelectEndString then strcurstringseltext:=strcurstringseltext+#13#10;
               Getmem(curstringseltext,length(strcurstringseltext));
               curstringseltext:=pchar(strcurstringseltext);
-              //for i:=0 to length(curstringseltext)-1 do
-                if( WritePrinter( FPrinterHandle, curstringseltext, length(curstringseltext), dwBytesWritten )= False ) then
-                  begin
-                    CloseFile(prnfile);
-                    EndPagePrinter( FPrinterHandle );
-                    EndDocPrinter( FPrinterHandle );
-                    ClosePrinter( FPrinterHandle );
-                    mess ('error send data to printer');
-                    exit
-                  end;
+              if not WritePrinter( FPrinterHandle, curstringseltext, length(curstringseltext), dwBytesWritten ) then
+                begin
+                  CloseFile(prnfile);
+                  EndPagePrinter( FPrinterHandle );
+                  EndDocPrinter( FPrinterHandle );
+                  ClosePrinter( FPrinterHandle );
+                  mess ('error send data to printer');
+                  exit
+                end;
             until iCurrLine>ei.TotalLines;
-          if( EndPagePrinter( FPrinterHandle )= False ) then
+          if not EndPagePrinter( FPrinterHandle ) then
           begin
-            //mess ('error end page');
+            mess ('error end page');
             EndDocPrinter( FPrinterHandle );
             ClosePrinter( FPrinterHandle );
             exit
           end;
         // Информируем спулер о конце документа.
-        if( EndDocPrinter( FPrinterHandle )= False ) then
+        if not EndDocPrinter( FPrinterHandle ) then
           begin
-            //mess ('error end doc');
+            mess ('error end doc');
             ClosePrinter( FPrinterHandle );
             exit
           end;
@@ -271,88 +228,68 @@ begin
     else  //иначе плагин вызван не из редактора
       begin
         farapi.Control (INVALID_HANDLE_VALUE,FCTL_GETPANELINFO,@pinfo);
-    //MessageBox( 0 , pinfo.CurDir + '\' +  pinfo.PanelItems[pinfo.CurrentItem].FindData.cFileName , 'Look', MB_OK);
         curdirstr:=pinfo.CurDir;
         curfilename:=pinfo.PanelItems[pinfo.CurrentItem].FindData.cFileName ;
-    //AssignFile ( myfile, curdirstr + '\' + curfilename);
-    //MessageBox( 0 ,pchar(curdirstr + '\' + curfilename), 'Look', MB_OK);
+
         if pinfo.PanelItems[pinfo.CurrentItem].FindData.dwFileAttributes <> 16 then
         begin
-          (*AssignFile(prnfile, curdirstr + '\' + curfilename);
-          Reset(prnfile, 1);
-      // specify printer port
-          AssignFile(port, Printer.Printers.Strings[resultmenu]);
-          Rewrite(port, 1);
-          repeat
-            BlockRead(prnfile, buffer, SizeOf(buffer), Read);
-            BlockWrite(port, buffer, Read);
-       // Application.ProcessMessages;
-          until EOF(prnfile) or (Read <> SizeOf(buffer));
-          CloseFile(prnfile);
-          CloseFile(port)
-          *)
           doc.pDocName:='Print Manager';
           doc.pOutputFile:=nil;
           doc.pDatatype:='RAW';
           // Начало документа
-    if StartDocPrinter( FPrinterHandle, 1, @DOC) = 0 then
-      begin
-        ClosePrinter( FPrinterHandle );
-        Exit
-      end;
-        // Начало страницы.
-    if( StartPagePrinter( FPrinterHandle ) = False) then
-      begin
-        EndDocPrinter( FPrinterHandle );
-        ClosePrinter( FPrinterHandle );
-        Exit
-      end;
-    // Посылаем данные на принтер.
-
-    AssignFile(prnfile, curdirstr + '\' + curfilename);
-    Reset(prnfile, 1);
-    //mess ('send data to printer');
-    repeat
-      BlockRead(prnfile, buffer, SizeOf(buffer), Read);
-      if( WritePrinter( FPrinterHandle, @buffer, Read, dwBytesWritten )= False ) then
-      begin
-        CloseFile(prnfile);
-        EndPagePrinter( FPrinterHandle );
-        EndDocPrinter( FPrinterHandle );
-        ClosePrinter( FPrinterHandle );
-        mess ('error send data to printer');
-        exit
-      end;
-    until EOF(prnfile) or (Read <> SizeOf(buffer));
-    //mess ('end page');
-    CloseFile(prnfile);
-    // Конец страницы.
-    if( EndPagePrinter( FPrinterHandle )= False ) then
-      begin
-        mess ('error end page');
-        EndDocPrinter( FPrinterHandle );
-        ClosePrinter( FPrinterHandle );
-        exit
-      end;
-    // Информируем спулер о конце документа.
-    if( EndDocPrinter( FPrinterHandle )= False ) then
-      begin
-        //mess ('error end doc');
-        ClosePrinter( FPrinterHandle );
-        exit
-      end;
-// Закрываем дескриптор принтера.
-      ClosePrinter(FPrinterHandle)
+          if StartDocPrinter( FPrinterHandle, 1, @DOC) = 0 then
+            begin
+              ClosePrinter( FPrinterHandle );
+              Exit
+            end;
+          // Начало страницы.
+          if not StartPagePrinter( FPrinterHandle )  then
+            begin
+              EndDocPrinter( FPrinterHandle );
+              ClosePrinter( FPrinterHandle );
+              Exit
+            end;
+          // Посылаем данные на принтер.
+          AssignFile(prnfile, curdirstr + '\' + curfilename); //Открываем файл для чтения
+          Reset(prnfile, 1);
+          //mess ('send data to printer');
+          repeat
+            BlockRead(prnfile, buffer, SizeOf(buffer), Read);
+            if( WritePrinter( FPrinterHandle, @buffer, Read, dwBytesWritten )= False ) then
+              begin
+                CloseFile(prnfile);
+                EndPagePrinter( FPrinterHandle );
+                EndDocPrinter( FPrinterHandle );
+                ClosePrinter( FPrinterHandle );
+                mess ('error send data to printer');
+                exit
+              end;
+          until EOF(prnfile) or (Read <> SizeOf(buffer));
+          CloseFile(prnfile);
+          // Конец страницы.
+          if not EndPagePrinter( FPrinterHandle ) then
+            begin
+              mess ('error end page');
+              EndDocPrinter( FPrinterHandle );
+              ClosePrinter( FPrinterHandle );
+              exit
+            end;
+          // Информируем спулер о конце документа.
+          if not EndDocPrinter( FPrinterHandle ) then
+            begin
+              ClosePrinter( FPrinterHandle );
+              exit
+            end;
+          // Закрываем дескриптор принтера.
+          ClosePrinter(FPrinterHandle)
         end
       end;
-      //mess ('result');
     end
   end
 end;
 
 exports
   SetStartupInfo,
-  GetOpenPluginInfo,
   GetPluginInfo,
   OpenPlugin;
 end.
